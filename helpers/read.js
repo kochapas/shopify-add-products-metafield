@@ -22,5 +22,6 @@ export const readProducts = async (client) => {
     }
   `;
   return await client.request(readProducts, {})
-    .then(async res => res?.products?.nodes);
+    .then(async res => res?.products?.nodes)
+    .catch(e => console.log("Error ==>", JSON.stringify(e, null, 2)));
 }
