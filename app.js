@@ -1,4 +1,5 @@
 import * as dotenv from "dotenv";
+import { readProducts } from "./helpers/read.js";
 import { gql, GraphQLClient } from "graphql-request";
 dotenv.config();
 
@@ -13,31 +14,9 @@ if (shop && accessToken) {
     'Content-Type': 'application/json',
     'X-Shopify-Access-Token': accessToken,
   }
-  const client = new GraphQLClient(graphqlEndpoint);
-  // Read product's metafield.
-  const readProducts = gql `
-    {
-      products(first: 10) {
-        nodes {
-          id
-          metafields(first: 3) {
-            nodes {
-              id
-              key
-              namespace
-              type
-              value
-            }
-          }
-          title
-        }
-      }
-    }
-  `;
-  const products = await client.request(readProducts, {}, headers)
-    .then(async res => res?.products?.nodes);
+  const client = new GraphQLClient(graphqlEndpoint, { headers });
+  const products = await readProducts(client);
   console.log("Read Products ==>", JSON.stringify(products, null, 2));
-
   // Add/Update product's metafield.
   const updateProductMeta = gql `
     mutation productUpdate($input: ProductInput!) {
