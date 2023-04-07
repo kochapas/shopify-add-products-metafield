@@ -63,7 +63,6 @@ if (shop && accessToken) {
     }
   `;
 
-  let productWithNoMetafield = null;
   products.forEach(async (product) => {
     if (!product?.metafields?.nodes?.length) {
       // No metafield, add new metafield immediately.
@@ -81,10 +80,38 @@ if (shop && accessToken) {
         }
       };
 
-      productWithNoMetafield = await client.request(updateProductMeta, variables, headers)
+      const result = await client.request(updateProductMeta, variables, headers)
         .catch((error) => {
           console.log("Error ==>", JSON.stringify(error, null, 2));
         });
+      console.log("Add Metafield ==>", JSON.stringify(result, null, 2));
+    } else {
+      product?.metafields?.nodes.forEach(async (metafield) => {
+        if (metafield.key === "test" && metafield.namespace === "global") {
+          const value = Number.parseInt(metafield.value);
+          // Metafield matched. Update value.
+          const variables = {
+            input: {
+              id: product.id,
+              metafields: [
+                {
+                  id: metafield.id,
+                  key: "test",
+                  namespace: "global",
+                  type: "number_integer",
+                  value: `${value + 1}`
+                }
+              ]
+            }
+          };
+
+          const result = await client.request(updateProductMeta, variables, headers)
+            .catch((error) => {
+              console.log("Error ==>", JSON.stringify(error, null, 2));
+            });
+          console.log("Update Metafield ==>", JSON.stringify(result, null, 2));
+        }
+      });
     }
   });
 }
