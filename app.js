@@ -1,4 +1,5 @@
 import * as dotenv from "dotenv";
+import { readProducts } from "./helpers/read.js";
 import { gql, GraphQLClient } from "graphql-request";
 dotenv.config();
 
@@ -13,29 +14,8 @@ if (shop && accessToken) {
     'Content-Type': 'application/json',
     'X-Shopify-Access-Token': accessToken,
   }
-  const client = new GraphQLClient(graphqlEndpoint);
-  // Read product's metafield.
-  const readProducts = gql `
-    {
-      products(first: 10) {
-        nodes {
-          id
-          metafields(first: 3) {
-            nodes {
-              id
-              key
-              namespace
-              type
-              value
-            }
-          }
-          title
-        }
-      }
-    }
-  `;
-  const products = await client.request(readProducts, {}, headers)
-    .then(async res => res?.products?.nodes);
+  const client = new GraphQLClient(graphqlEndpoint, { headers });
+  const products = await readProducts(client);
   console.log("Read Products ==>", JSON.stringify(products, null, 2));
 
   // Add/Update product's metafield.
@@ -63,55 +43,61 @@ if (shop && accessToken) {
     }
   `;
 
+  const addMetafield = async (productId) => {
+    const variables = {
+      input: {
+        id: productId,
+        metafields: [
+          {
+            key: "test",
+            namespace: "global",
+            type: "number_integer",
+            value: "0"
+          }
+        ]
+      }
+    };
+
+    const result = await client.request(updateProductMeta, variables, headers)
+    .catch((error) => {
+      console.log("Error ==>", JSON.stringify(error, null, 2));
+    });
+    console.log("--------------------------------");
+    console.log("Add Metafield ==>", JSON.stringify(result, null, 2));
+  };
+
   products.forEach(async (product) => {
-    if (!product?.metafields?.nodes?.length) {
-      // No metafield, add new metafield immediately.
-      const variables = {
-        input: {
-          id: product.id,
-          metafields: [
-            {
-              key: "test",
-              namespace: "global",
-              type: "number_integer",
-              value: "0"
-            }
-          ]
-        }
-      };
+    let metafieldFound = false;
+    product?.metafields?.nodes.forEach(async (metafield) => {
+      if (metafield.key === "test" && metafield.namespace === "global") {
+        // Metafield matched. Update value.
+        metafieldFound = true;
+        const value = Number.parseInt(metafield.value);
+        const variables = {
+          input: {
+            id: product.id,
+            metafields: [
+              {
+                id: metafield.id,
+                key: "test",
+                namespace: "global",
+                type: "number_integer",
+                value: `${value + 1}`
+              }
+            ]
+          }
+        };
 
-      const result = await client.request(updateProductMeta, variables, headers)
-        .catch((error) => {
-          console.log("Error ==>", JSON.stringify(error, null, 2));
-        });
-      console.log("Add Metafield ==>", JSON.stringify(result, null, 2));
-    } else {
-      product?.metafields?.nodes.forEach(async (metafield) => {
-        if (metafield.key === "test" && metafield.namespace === "global") {
-          const value = Number.parseInt(metafield.value);
-          // Metafield matched. Update value.
-          const variables = {
-            input: {
-              id: product.id,
-              metafields: [
-                {
-                  id: metafield.id,
-                  key: "test",
-                  namespace: "global",
-                  type: "number_integer",
-                  value: `${value + 1}`
-                }
-              ]
-            }
-          };
+        const result = await client.request(updateProductMeta, variables, headers)
+        .catch(e => console.log("Error ==>", JSON.stringify(e, null, 2)));
+        console.log("--------------------------------");
+        console.log("Update Metafield ==>", JSON.stringify(result, null, 2));
+      }
+    });
 
-          const result = await client.request(updateProductMeta, variables, headers)
-            .catch((error) => {
-              console.log("Error ==>", JSON.stringify(error, null, 2));
-            });
-          console.log("Update Metafield ==>", JSON.stringify(result, null, 2));
-        }
-      });
+    if (!metafieldFound) {
+      // If there's no metafield match with search criteria (global/test), add a new one.
+      addMetafield(product.id);
     }
   });
 }
