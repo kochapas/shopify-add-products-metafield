@@ -24,14 +24,67 @@ if (shop && accessToken) {
             nodes {
               id
               key
+              namespace
+              type
               value
             }
           }
+          title
         }
       }
     }
   `;
   const products = await client.request(readProducts, {}, headers)
     .then(async res => res?.products?.nodes);
-  console.log({ products });
+  console.log("Read Products ==>", JSON.stringify(products, null, 2));
+
+  // Add/Update product's metafield.
+  const updateProductMeta = gql `
+    mutation productUpdate($input: ProductInput!) {
+      productUpdate(input: $input) {
+        product {
+          id
+          metafields(first: 3) {
+            nodes {
+              id
+              key
+              namespace
+              type
+              value
+            }
+          }
+          title
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  let productWithNoMetafield = null;
+  products.forEach(async (product) => {
+    if (!product?.metafields?.nodes?.length) {
+      // No metafield, add new metafield immediately.
+      const variables = {
+        input: {
+          id: product.id,
+          metafields: [
+            {
+              key: "test",
+              namespace: "global",
+              type: "number_integer",
+              value: "0"
+            }
+          ]
+        }
+      };
+
+      productWithNoMetafield = await client.request(updateProductMeta, variables, headers)
+        .catch((error) => {
+          console.log("Error ==>", JSON.stringify(error, null, 2));
+        });
+    }
+  });
 }
