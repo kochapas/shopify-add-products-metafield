@@ -1,0 +1,10 @@
+{
+  "name": "shopify-add-products-metafield",
+  "version": "1.0.0",
+  "description": "Add/Edit product's metafield based on condition.",
+  "main": "app.js",
+  "type": "module",
+  "dependencies": {
+    "dotenv": "^16.0.3"
+  }
+}
